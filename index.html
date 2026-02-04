@@ -36,6 +36,9 @@
             color: white;
             overflow-x: hidden;
             margin: 0;
+            user-select: none; /* Prevent text selection on touch */
+            -webkit-user-select: none;
+            touch-action: none; /* Prevent scrolling on mobile while playing */
             
             /* Custom Red/Teal Cursor */
             cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="13" fill="%23111827" stroke="%23000" stroke-width="2"/><circle cx="16" cy="16" r="11" fill="none" stroke="%23ef4444" stroke-width="2" stroke-dasharray="2 3"/><circle cx="16" cy="16" r="4" fill="%2314b8a6"/><path d="M16 11 L16 21 M11 16 L21 16" stroke="%23fff" stroke-width="2"/></svg>') 16 16, auto;
@@ -229,6 +232,8 @@
             transform: translateX(-50%);
             text-align: center;
             pointer-events: auto;
+            width: 90%;
+            max-width: 600px;
         }
 
         #game-over-screen {
@@ -286,7 +291,8 @@
         <div class="game-overlay">
             <h2 class="text-4xl font-black italic text-white mb-2" style="text-shadow: 2px 2px 0 var(--primary);">ENDLESS RUNNER</h2>
             <div class="bg-black/50 p-2 rounded backdrop-blur text-sm">
-                Use <span class="key-hint">A</span> / <span class="key-hint">D</span> or <span class="key-hint">ARROWS</span> to Dodge
+                Desktop: Use <span class="key-hint">A</span> / <span class="key-hint">D</span> or <span class="key-hint">ARROWS</span> to Dodge<br>
+                Mobile: Tap <span class="key-hint">LEFT</span> or <span class="key-hint">RIGHT</span> side of screen
             </div>
             <button class="exit-btn mt-4 bg-gray-600 border-gray-400 hover:bg-gray-500" onclick="stopGame()">Exit Game</button>
         </div>
@@ -300,6 +306,7 @@
     <div id="game-over-screen">
         <h2 class="text-6xl font-black italic text-red-500 mb-4" style="text-shadow: 4px 4px 0 white;">CRASHED!</h2>
         <div class="text-2xl text-white mb-8 font-bold">FINAL SCORE: <span id="final-score" class="text-yellow-400">0</span></div>
+        <div class="text-gray-300 mb-8 animate-pulse text-sm uppercase tracking-widest">Press ENTER or Tap to Restart</div>
         <div class="flex space-x-4">
             <button class="btn-cartoon text-xl" onclick="resetGame()">TRY AGAIN</button>
             <button class="btn-cartoon-outline text-white border-white hover:bg-white hover:text-black" onclick="stopGame()">QUIT</button>
@@ -595,6 +602,12 @@
             const mouse = new THREE.Vector2();
 
             window.addEventListener('click', (event) => {
+                // If game over, tap restarts
+                if(isGameOver) {
+                    resetGame();
+                    return;
+                }
+
                 if(gameActive) return;
                 // Only click car to start if not already playing
                 mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -604,6 +617,26 @@
                 if(intersects.length > 0) startGame();
             });
 
+            // Mobile Touch Controls
+            window.addEventListener('touchstart', (e) => {
+                if(!gameActive) return;
+                const touchX = e.touches[0].clientX;
+                const screenW = window.innerWidth;
+                
+                if(touchX < screenW / 2) {
+                    // Left Side -> Steer Left
+                    keys.ArrowLeft = true;
+                } else {
+                    // Right Side -> Steer Right
+                    keys.ArrowRight = true;
+                }
+            });
+
+            window.addEventListener('touchend', () => {
+                keys.ArrowLeft = false;
+                keys.ArrowRight = false;
+            });
+
             document.addEventListener('mousemove', (event) => {
                 if(!gameActive) {
                     mouseX = (event.clientX / window.innerWidth) * 2 - 1;
@@ -611,7 +644,14 @@
                 }
             });
 
-            window.addEventListener('keydown', (e) => { keys[e.key] = true; });
+            window.addEventListener('keydown', (e) => { 
+                keys[e.key] = true; 
+                
+                // Restart on Enter
+                if(isGameOver && e.key === 'Enter') {
+                    resetGame();
+                }
+            });
             window.addEventListener('keyup', (e) => { keys[e.key] = false; });
 
             window.addEventListener('resize', () => {
@@ -642,14 +682,14 @@
                     // 1. Move Car Forward (simulated by moving car -Z)
                     carGroup.position.z -= gameConfig.currentSpeed;
                     
-                    // 2. Lateral Movement (Steering)
+                    // 2. Lateral Movement (Steering) - INVERTED/CORRECTED LOGIC
                     if(keys.a || keys.ArrowLeft) {
-                        carGroup.position.x += gameConfig.steerSpeed;
-                        carGroup.rotation.z = -0.1; // Tilt left
+                        carGroup.position.x -= gameConfig.steerSpeed; // Move Left (-X)
+                        carGroup.rotation.z = 0.1; // Tilt Left
                         carGroup.rotation.y = 0.1;
                     } else if(keys.d || keys.ArrowRight) {
-                        carGroup.position.x -= gameConfig.steerSpeed;
-                        carGroup.rotation.z = 0.1; // Tilt right
+                        carGroup.position.x += gameConfig.steerSpeed; // Move Right (+X)
+                        carGroup.rotation.z = -0.1; // Tilt Right
                         carGroup.rotation.y = -0.1;
                     } else {
                         // Reset rotation
