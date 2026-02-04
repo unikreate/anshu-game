@@ -306,7 +306,7 @@
     <div id="game-over-screen">
         <h2 class="text-6xl font-black italic text-red-500 mb-4" style="text-shadow: 4px 4px 0 white;">CRASHED!</h2>
         <div class="text-2xl text-white mb-8 font-bold">FINAL SCORE: <span id="final-score" class="text-yellow-400">0</span></div>
-        <div class="text-gray-300 mb-8 animate-pulse text-sm uppercase tracking-widest">Press ENTER or Tap to Restart</div>
+        <div class="text-gray-300 mb-8 animate-pulse text-sm uppercase tracking-widest">Press ENTER, SPACE or Tap to Restart</div>
         <div class="flex space-x-4">
             <button class="btn-cartoon text-xl" onclick="resetGame()">TRY AGAIN</button>
             <button class="btn-cartoon-outline text-white border-white hover:bg-white hover:text-black" onclick="stopGame()">QUIT</button>
@@ -647,8 +647,8 @@
             window.addEventListener('keydown', (e) => { 
                 keys[e.key] = true; 
                 
-                // Restart on Enter
-                if(isGameOver && e.key === 'Enter') {
+                // Restart on Enter OR Space
+                if(isGameOver && (e.key === 'Enter' || e.code === 'Space')) {
                     resetGame();
                 }
             });
@@ -735,47 +735,163 @@
         function createCar() {
             carGroup = new THREE.Group();
             
-            const bodyMat = new THREE.MeshToonMaterial({ color: 0xef4444 }); 
-            const darkMat = new THREE.MeshToonMaterial({ color: 0x1f2937 }); 
-            const glassMat = new THREE.MeshToonMaterial({ color: 0x14b8a6, opacity: 0.8, transparent: true }); 
-            const wheelMat = new THREE.MeshToonMaterial({ color: 0x000000 });
-            const rimMat = new THREE.MeshToonMaterial({ color: 0xcccccc });
-            const lightMat = new THREE.MeshBasicMaterial({ color: 0xffffff }); 
+            // Realism Materials
+            const paintMat = new THREE.MeshStandardMaterial({ 
+                color: 0x003366, // Deep Metallic Blue (Marina Bay Blue ish)
+                metalness: 0.6,
+                roughness: 0.4
+            });
+            const carbonMat = new THREE.MeshStandardMaterial({ 
+                color: 0x111111, 
+                metalness: 0.3, 
+                roughness: 0.8 
+            });
+            const chromeMat = new THREE.MeshStandardMaterial({ 
+                color: 0xffffff, 
+                metalness: 0.9, 
+                roughness: 0.1 
+            });
+            const glassMat = new THREE.MeshPhysicalMaterial({ 
+                color: 0x111111, 
+                metalness: 0.9, 
+                roughness: 0.0, 
+                transparent: true, 
+                opacity: 0.7 
+            });
+            const rubberMat = new THREE.MeshStandardMaterial({ 
+                color: 0x111111, 
+                roughness: 0.9 
+            });
+            const lightMat = new THREE.MeshStandardMaterial({ 
+                color: 0xffffff, 
+                emissive: 0xffffff, 
+                emissiveIntensity: 5 
+            });
+             const tailLightMat = new THREE.MeshStandardMaterial({ 
+                color: 0xff0000, 
+                emissive: 0xff0000, 
+                emissiveIntensity: 2 
+            });
 
-            // Chassis
-            const chassis = new THREE.Mesh(new THREE.BoxGeometry(2, 0.7, 4.5), bodyMat);
-            chassis.position.y = 0.7;
+            // --- CAR BODY SCULPTING ---
+            
+            // 1. Lower Chassis (Main Block)
+            const chassisGeo = new THREE.BoxGeometry(2.1, 0.5, 4.8);
+            const chassis = new THREE.Mesh(chassisGeo, paintMat);
+            chassis.position.y = 0.5;
             chassis.castShadow = true;
             carGroup.add(chassis);
 
-            // Cabin
-            const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.6, 2.5), glassMat); 
-            cabin.position.set(0, 1.35, -0.2);
+            // 2. Cabin (Greenhouse)
+            const cabinGeo = new THREE.BoxGeometry(1.9, 0.6, 2.2);
+            const cabin = new THREE.Mesh(cabinGeo, glassMat);
+            cabin.position.set(0, 1.0, -0.3); 
             carGroup.add(cabin);
             
-            // Roof
-            const roof = new THREE.Mesh(new THREE.BoxGeometry(1.72, 0.05, 2.52), bodyMat); 
-            roof.position.set(0, 1.65, -0.2);
+            // Roof (Carbon)
+            const roofGeo = new THREE.BoxGeometry(1.92, 0.05, 2.25);
+            const roof = new THREE.Mesh(roofGeo, carbonMat);
+            roof.position.set(0, 1.32, -0.3);
             carGroup.add(roof);
 
-            // Wheels
-            const wheelGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.25, 24);
-            const rimGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.26, 8); 
-            const wheelPositions = [{ x: 1, z: 1.5 }, { x: -1, z: 1.5 }, { x: 1, z: -1.5 }, { x: -1, z: -1.5 }];
+            // 3. Hood (Sloped)
+            const hoodGeo = new THREE.BoxGeometry(1.9, 0.1, 1.4);
+            const hood = new THREE.Mesh(hoodGeo, paintMat);
+            hood.position.set(0, 0.76, 1.5); // Front
+            carGroup.add(hood);
+
+            // 4. Trunk
+            const trunkGeo = new THREE.BoxGeometry(1.9, 0.1, 0.8);
+            const trunk = new THREE.Mesh(trunkGeo, paintMat);
+            trunk.position.set(0, 0.76, -2.0); // Back
+            carGroup.add(trunk);
+
+            // 5. Bumpers
+            // Front Bumper (Aggressive)
+            const fBumperGeo = new THREE.BoxGeometry(2.1, 0.4, 0.2);
+            const fBumper = new THREE.Mesh(fBumperGeo, paintMat);
+            fBumper.position.set(0, 0.4, 2.45);
+            carGroup.add(fBumper);
+            
+            // Front Splitter (Carbon)
+            const splitterGeo = new THREE.BoxGeometry(2.15, 0.05, 0.3);
+            const splitter = new THREE.Mesh(splitterGeo, carbonMat);
+            splitter.position.set(0, 0.15, 2.5);
+            carGroup.add(splitter);
+
+            // Rear Bumper
+            const rBumperGeo = new THREE.BoxGeometry(2.1, 0.4, 0.2);
+            const rBumper = new THREE.Mesh(rBumperGeo, paintMat);
+            rBumper.position.set(0, 0.4, -2.45);
+            carGroup.add(rBumper);
+            
+            // Diffuser
+            const diffuserGeo = new THREE.BoxGeometry(1.8, 0.15, 0.1);
+            const diffuser = new THREE.Mesh(diffuserGeo, carbonMat);
+            diffuser.position.set(0, 0.2, -2.55);
+            carGroup.add(diffuser);
+
+            // 6. Wheels (More detailed)
+            const wheelGeo = new THREE.CylinderGeometry(0.42, 0.42, 0.28, 32);
+            const rimGeo = new THREE.CylinderGeometry(0.28, 0.28, 0.29, 16); 
+            const wheelPositions = [
+                { x: 1.05, z: 1.6 },   // Front Left
+                { x: -1.05, z: 1.6 },  // Front Right
+                { x: 1.05, z: -1.6 },  // Rear Left
+                { x: -1.05, z: -1.6 }  // Rear Right
+            ];
 
             wheelPositions.forEach(pos => {
                 const wG = new THREE.Group();
-                const tire = new THREE.Mesh(wheelGeo, wheelMat); tire.rotation.z = Math.PI/2;
-                const rim = new THREE.Mesh(rimGeo, rimMat); rim.rotation.z = Math.PI/2;
-                wG.add(tire); wG.add(rim);
-                wG.position.set(pos.x, 0.4, pos.z);
+                const tire = new THREE.Mesh(wheelGeo, rubberMat); 
+                tire.rotation.z = Math.PI/2;
+                tire.castShadow = true;
+                
+                const rim = new THREE.Mesh(rimGeo, carbonMat); // Black rims
+                rim.rotation.z = Math.PI/2;
+                
+                // Add a center cap
+                const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.30, 8), chromeMat);
+                cap.rotation.z = Math.PI/2;
+
+                wG.add(tire);
+                wG.add(rim);
+                wG.add(cap);
+                wG.position.set(pos.x, 0.42, pos.z);
                 carGroup.add(wG);
                 wheels.push(wG);
             });
 
-            // Details
-            const spoiler = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.05, 0.3), darkMat); 
-            spoiler.position.set(0, 1.1, -2.2); spoiler.rotation.x = 0.1;
+            // 7. Details
+            
+            // Kidney Grilles (Black)
+            const grilleGeo = new THREE.BoxGeometry(0.4, 0.3, 0.05);
+            const grilleL = new THREE.Mesh(grilleGeo, carbonMat); grilleL.position.set(0.22, 0.6, 2.56); carGroup.add(grilleL);
+            const grilleR = new THREE.Mesh(grilleGeo, carbonMat); grilleR.position.set(-0.22, 0.6, 2.56); carGroup.add(grilleR);
+
+            // Headlights (Angel Eyes glow)
+            const hlGeo = new THREE.BoxGeometry(0.5, 0.15, 0.1);
+            const hlL = new THREE.Mesh(hlGeo, lightMat); hlL.position.set(0.8, 0.65, 2.5); carGroup.add(hlL);
+            const hlR = new THREE.Mesh(hlGeo, lightMat); hlR.position.set(-0.8, 0.65, 2.5); carGroup.add(hlR);
+
+            // Tail Lights
+            const tlGeo = new THREE.BoxGeometry(0.6, 0.15, 0.1);
+            const tlL = new THREE.Mesh(tlGeo, tailLightMat); tlL.position.set(0.8, 0.65, -2.5); carGroup.add(tlL);
+            const tlR = new THREE.Mesh(tlGeo, tailLightMat); tlR.position.set(-0.8, 0.65, -2.5); carGroup.add(tlR);
+
+            // Quad Exhausts
+            const exGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.2, 16);
+            const ex1 = new THREE.Mesh(exGeo, chromeMat); ex1.rotation.x = Math.PI/2; ex1.position.set(0.5, 0.25, -2.6);
+            const ex2 = new THREE.Mesh(exGeo, chromeMat); ex2.rotation.x = Math.PI/2; ex2.position.set(0.7, 0.25, -2.6);
+            const ex3 = new THREE.Mesh(exGeo, chromeMat); ex3.rotation.x = Math.PI/2; ex3.position.set(-0.5, 0.25, -2.6);
+            const ex4 = new THREE.Mesh(exGeo, chromeMat); ex4.rotation.x = Math.PI/2; ex4.position.set(-0.7, 0.25, -2.6);
+            carGroup.add(ex1); carGroup.add(ex2); carGroup.add(ex3); carGroup.add(ex4);
+
+            // Spoiler (Lip)
+            const spoilerGeo = new THREE.BoxGeometry(1.9, 0.05, 0.2);
+            const spoiler = new THREE.Mesh(spoilerGeo, carbonMat); 
+            spoiler.position.set(0, 0.82, -2.4); 
+            spoiler.rotation.x = 0.1;
             carGroup.add(spoiler);
             
             scene.add(carGroup);
